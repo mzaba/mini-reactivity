@@ -1,18 +1,25 @@
-Mini-reactivity-js V0
-mini-reactivity-js v0.1
+# mini-reactivity-js
 
-Un micro-framework reactivo mínimo para HTML (sin dependencias) que provee:
 
-Interpolación {{ ... }}
+Pequeño framework reactivo para HTML sin dependencias. Proporciona:
 
-r-model (two-way binding)
 
-r-bind / :attr (binding de atributos)
+- `{{ expr }}` — Interpolación en nodos de texto.
+- `r-model="path"` — Two-way binding para inputs (soporta checkbox/radio).
+- `r-bind:attr="expr"` / `:attr="expr"` — Atributos dinámicos.
+- `r-if="expr"` — Render condicional (inserta/extrae del DOM).
+- `r-for` en `<template>` — Iteración: `r-for="item, i in items"`.
+- `r-on:event="expr"` — Eventos declarativos (p.ej. `r-on:click`, `r-on:input`).
 
-r-if (render condicional)
 
-r-for (iteración con <template>)
+> **Aviso**: No evalúes expresiones provenientes de usuarios. Las expresiones se ejecutan vía `with(state)`.
 
-r-on:event (manejadores de eventos; p.ej. r-on:click, r-on:input)
 
-Diseño pensado para proyectos chicos/medianos, prototipos y embebidos. No evalúes expresiones de usuarios.
+## Instalación
+
+
+Copia `mini-reactivity.js` y referéncialo en tu HTML:
+
+
+```html
+<script src="./mini-reactivity.js"></script>
