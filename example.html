@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mini Reactivity Demo</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif; margin:24px}
+.card{border:1px solid #ddd; border-radius:12px; padding:16px; margin:12px 0}
+button{cursor:pointer}
+</style>
+</head>
+<body>
+<h1>{{ title }}</h1>
+
+
+<div class="card">
+<h3>Formulario</h3>
+<label>Nombre: <input r-model="form.name" placeholder="Tu nombre" /></label>
+<p>Hola, {{ form.name || 'anónimo' }}.</p>
+<label><input type="checkbox" r-model="flags.showDetails"> Mostrar detalles</label>
+<p r-if="flags.showDetails">Detalles: {{ details }}</p>
+</div>
+
+
+<div class="card">
+<h3>Lista</h3>
+<input r-model="form.item" placeholder="Nuevo ítem" />
+<button r-on:click="items.push(form.item); form.item='';">Agregar</button>
+
+
+<ul>
+<template r-for="it, i in items">
+<li>
+<span>{{ i+1 }} — {{ it }}</span>
+<button :title="'Eliminar '+it" r-on:click="items.splice(i,1)">x</button>
+</li>
+</template>
+</ul>
+</div>
+
+
+<div class="card">
+<h3>Bindings</h3>
+<img :src="img.url" :alt="img.alt" :width="img.w"/>
+<input r-model="img.url" placeholder="URL imagen" />
+<input r-model="img.w" placeholder="ancho" />
+</div>
+
+
+<script src="./mini-reactivity.js"></script>
+<script>
+const app = MiniReactivity.createApp({
+state: {
+title: 'Mini Reactivity JS — Demo',
+form: { name: '', item: '' },
+flags: { showDetails: true },
+details: 'Se oculta/ muestra con r-if',
+items: ['Lager', 'Pale Ale'],
+img: { url: 'https://via.placeholder.com/120', alt: 'demo', w: 120 }
+}
+}).mount(document.body);
+
+
+// Uso programático opcional:
+// app.state.title = 'Nuevo título';
+</script>
+</body>
+</html>
