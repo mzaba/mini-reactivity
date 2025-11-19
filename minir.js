@@ -290,22 +290,23 @@
   function handleIf(el, scope) {
     if (!el.hasAttribute('r-if')) return;
     const expr = el.getAttribute('r-if').trim();
+    const getter = evalInScope(expr);
     el.removeAttribute('r-if');
     const anchor = document.createComment('r-if');
     const parent = el.parentNode;
+    if (!parent) return;
     parent.insertBefore(anchor, el);
 
     effect(() => {
-      const getter = evalInScope(expr);
       const show = !!getter(scope);
       const currentParent = anchor.parentNode;
       if (!currentParent) return;
       if (show) {
-        if (!el.isConnected) {
+        if (el.parentNode !== currentParent) {
           currentParent.insertBefore(el, anchor.nextSibling);
         }
-      } else if (el.isConnected) {
-        el.remove();
+      } else if (el.parentNode) {
+        el.parentNode.removeChild(el);
       }
     });
   }
@@ -337,9 +338,9 @@ function handleFor(el, scope) {
 
   const templateEl = el; // este es tu molde
   let blocks = [];
+  const getter = evalInScope(parsed.sourceExpr);
 
   effect(() => {
-    const getter = evalInScope(parsed.sourceExpr);
     let items = getter(scope);
     if (!Array.isArray(items)) {
       if (items && typeof items === 'object') {
@@ -365,10 +366,10 @@ function handleFor(el, scope) {
 
       // clonar el nodo original completo
       const clone = document.importNode(templateEl, true);
+      frag.appendChild(clone);
       processNode(clone, childScope);
 
       blocks.push([clone]);
-      frag.appendChild(clone);
     });
 
     const currentParent = anchor.parentNode;
