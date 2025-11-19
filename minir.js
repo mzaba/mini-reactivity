@@ -54,13 +54,33 @@
       activeEffect.deps.push(dep);
     }
   }
+    
+  // ---- scheduler mínimo ----
+  const jobQueue = new Set();
+  let isFlushing = false;
+  function queueJob(job) {
+    jobQueue.add(job);
+    if (!isFlushing) {
+      isFlushing = true;
+      queueMicrotask(() => {
+        try { jobQueue.forEach(fn => fn()); }
+        finally { jobQueue.clear(); isFlushing = false; }
+      });
+    }
+  }
+
 
   function trigger(target, key) {
     const depsMap = targetMap.get(target);
     if (!depsMap) return;
     const effects = depsMap.get(key);
     if (!effects) return;
-    effects.forEach(effectFn => effectFn());
+    // effects.forEach(effectFn => effectFn());
+    effects.forEach(effectFn => {
+      if (effectFn !== activeEffect) { // evita auto-llamarse en caliente
+        queueJob(effectFn);
+      }
+    });
   }
 
   function reactive(target) {
@@ -172,7 +192,7 @@
     [...el.attributes].forEach(attr => {
       const { name, value } = attr;
       if (name.startsWith('r-bind:')) {
-        const prop = name.slice(7 + 1);
+        const prop = name.slice(7);
         bindAttribute(el, prop, value, scope);
         el.removeAttribute(name);
       } else if (name.startsWith(':')) {
@@ -180,7 +200,8 @@
         bindAttribute(el, prop, value, scope);
         el.removeAttribute(name);
       } else if (name.startsWith('r-on:')) {
-        const eventName = name.slice(5 + 1);
+        //const eventName = name.slice(5 + 1);
+        const eventName = name.slice(5);
         bindEvent(el, eventName, value, scope);
         el.removeAttribute(name);
       } else if (name.startsWith('@')) {
@@ -205,6 +226,7 @@
 
   function bindEvent(el, eventName, expr, scope) {
     const handler = (event) => callInScope(expr, scope, event);
+      console.log('addding event', eventName, handler);
     el.addEventListener(eventName, handler);
   }
 
@@ -297,64 +319,67 @@
     return { valueAlias, indexAlias, sourceExpr };
   }
 
-  function handleFor(el, scope) {
-    if (!el.hasAttribute('r-for')) return false;
-    const expr = el.getAttribute('r-for').trim();
-    const parsed = parseForExpression(expr);
-    if (!parsed) {
-      console.warn('[mini-reactivity] Invalid r-for expression:', expr);
-      el.removeAttribute('r-for');
-      return false;
+function handleFor(el, scope) {
+  if (!el.hasAttribute('r-for')) return false;
+  const expr = el.getAttribute('r-for').trim();
+  const parsed = parseForExpression(expr);
+  if (!parsed) {
+    console.warn('[mini-reactivity] Invalid r-for expression:', expr);
+    el.removeAttribute('r-for');
+    return false;
+  }
+
+  el.removeAttribute('r-for');
+  const parent = el.parentNode;
+  const anchor = document.createComment('r-for');
+  parent.insertBefore(anchor, el);
+  parent.removeChild(el);
+
+  const templateEl = el; // este es tu molde
+  let blocks = [];
+
+  effect(() => {
+    const getter = evalInScope(parsed.sourceExpr);
+    let items = getter(scope);
+    if (!Array.isArray(items)) {
+      if (items && typeof items === 'object') {
+        items = Object.keys(items).map(key => items[key]);
+      } else {
+        items = [];
+      }
     }
 
-    el.removeAttribute('r-for');
-    const parent = el.parentNode;
-    const anchor = document.createComment('r-for');
-    parent.insertBefore(anchor, el);
-    parent.removeChild(el);
+    // limpiar clones anteriores
+    blocks.forEach(block => block.forEach(node => node.remove()));
+    blocks = [];
 
-    let blocks = [];
+    const frag = document.createDocumentFragment();
 
-    effect(() => {
-      const getter = evalInScope(parsed.sourceExpr);
-      let items = getter(scope);
-      if (!Array.isArray(items)) {
-        if (items && typeof items === 'object') {
-          items = Object.keys(items).map(key => items[key]);
-        } else {
-          items = [];
-        }
+    items.forEach((item, index) => {
+      const childScope = createScope(scope, {
+        [parsed.valueAlias]: item
+      });
+      if (parsed.indexAlias) {
+        childScope[parsed.indexAlias] = index;
       }
 
-      blocks.forEach(block => {
-        block.forEach(node => node.remove());
-      });
-      blocks = [];
+      // clonar el nodo original completo
+      const clone = document.importNode(templateEl, true);
+      processNode(clone, childScope);
 
-      const frag = document.createDocumentFragment();
-
-      items.forEach((item, index) => {
-        const childScope = createScope(scope, {
-          [parsed.valueAlias]: item
-        });
-        if (parsed.indexAlias) {
-          childScope[parsed.indexAlias] = index;
-        }
-        const clone = document.importNode(el.content ? el.content : el, true);
-        const childNodes = Array.from(clone.childNodes);
-        childNodes.forEach(child => processNode(child, childScope));
-        blocks.push(childNodes);
-        frag.appendChild(clone);
-      });
-
-      const currentParent = anchor.parentNode;
-      if (currentParent) {
-        currentParent.insertBefore(frag, anchor.nextSibling);
-      }
+      blocks.push([clone]);
+      frag.appendChild(clone);
     });
 
-    return true;
-  }
+    const currentParent = anchor.parentNode;
+    if (currentParent) {
+      currentParent.insertBefore(frag, anchor.nextSibling);
+    }
+  });
+
+  return true;
+}
+
 
   function processNode(node, scope) {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -391,6 +416,8 @@
   function createApp(options = {}) {
     const rawState = options.state || {};
     const methods = options.methods || {};
+    const mountedHooks = [];
+    if (options.mounted) mountedHooks.push(options.mounted);
     const state = reactive(rawState);
 
     Object.keys(methods).forEach(name => {
@@ -411,6 +438,17 @@
           throw new Error('[mini-reactivity] Mount target not found');
         }
         compile(root, state);
+        
+        queueMicrotask(() => {
+            root.querySelectorAll('[r-cloak]').forEach(el => el.removeAttribute('r-cloak'));
+            root.removeAttribute('r-cloak');
+            mountedHooks.forEach(fn => {
+                try { fn.call(state, { state, root }); } 
+                catch (e) { console.warn('[mini-reactivity] onMounted error:', e); }
+            });
+        });
+
+          
         return { state };
       },
       state
