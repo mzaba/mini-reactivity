@@ -341,13 +341,15 @@ function handleFor(el, scope) {
   const getter = evalInScope(parsed.sourceExpr);
 
   effect(() => {
-    let items = getter(scope);
-    if (!Array.isArray(items)) {
-      if (items && typeof items === 'object') {
-        items = Object.keys(items).map(key => items[key]);
-      } else {
-        items = [];
-      }
+    const source = getter(scope);
+    let entries = [];
+
+    if (Array.isArray(source)) {
+      entries = source.map((value, index) => ({ value, key: index }));
+    } else if (source instanceof Map) {
+      entries = Array.from(source.entries()).map(([key, value]) => ({ value, key }));
+    } else if (source && typeof source === 'object') {
+      entries = Object.keys(source).map(key => ({ value: source[key], key }));
     }
 
     // limpiar clones anteriores
@@ -356,12 +358,12 @@ function handleFor(el, scope) {
 
     const frag = document.createDocumentFragment();
 
-    items.forEach((item, index) => {
+    entries.forEach(entry => {
       const childScope = createScope(scope, {
-        [parsed.valueAlias]: item
+        [parsed.valueAlias]: entry.value
       });
       if (parsed.indexAlias) {
-        childScope[parsed.indexAlias] = index;
+        childScope[parsed.indexAlias] = entry.key;
       }
 
       // clonar el nodo original completo
