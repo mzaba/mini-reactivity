@@ -39,6 +39,15 @@ button{cursor:pointer}
 </ul>
 </div>
 
+<div class="card">
+<h3>Mapa (clave/valor)</h3>
+<ul>
+<template r-for="value, key in flavors">
+<li><strong>{{ key }}</strong>: {{ value }}</li>
+</template>
+</ul>
+</div>
+
 
 <div class="card">
 <h3>Bindings</h3>
@@ -57,6 +66,11 @@ form: { name: '', item: '' },
 flags: { showDetails: true },
 details: 'Se oculta/ muestra con r-if',
 items: ['Lager', 'Pale Ale'],
+flavors: {
+  Lager: 'Suave y balanceada',
+  IPA: 'Amarga y aromática',
+  Porter: 'Tostada y oscura'
+},
 img: { url: 'https://via.placeholder.com/120', alt: 'demo', w: 120 }
 }
 }).mount(document.body);

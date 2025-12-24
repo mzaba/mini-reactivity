@@ -8,7 +8,7 @@ Framework reactivo diminuto para HTML sin dependencias externas. Está pensado p
 - **Two-way binding** con `r-model="path"` (soporta `input`, `select`, `textarea`, `checkbox` y `radio`).
 - **Atributos dinámicos** con `r-bind:attr="expr"` o su atajo `:attr="expr"`.
 - **Render condicional** mediante `r-if="expr"`, que inserta o elimina nodos del DOM.
-- **Listas** usando `r-for` sobre `<template>`: `r-for="item, i in items"`.
+- **Listas** usando `r-for` sobre `<template>`: `r-for="item, i in items"` (también soporta objetos y mapas con clave y valor).
 - **Eventos declarativos** con `r-on:event="expr"`, por ejemplo `r-on:click="increment()"`.
 - Estado reactivo y expresiones evaluadas en el contexto de `state` para una sintaxis natural.
 
@@ -123,6 +123,16 @@ El nodo se inserta o elimina del DOM según la expresión booleana. No deja cont
 ```
 
 Cada ítem del arreglo se renderiza a partir del `<template>` original. Puedes usar alias de valor (`todo`) e índice (`i`).
+
+Para objetos o `Map`, el segundo alias te da la clave:
+
+```html
+<ul>
+  <template r-for="value, key in options">
+    <li>{{ key }}: {{ value }}</li>
+  </template>
+</ul>
+```
 
 ### Eventos declarativos (`r-on` / `@`)
 
